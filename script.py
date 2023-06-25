@@ -10,14 +10,34 @@ import yaml
 def env_to_secret(env_path, output_path, name='mysecret'):
     data = {}
 
-    with open(env_path, 'r') as file:
-        for line in file:
-            key, value = line.strip().split('=')
-            key = key.strip()
+    try:
+        with open(env_path, 'r') as file:
+            for line in file:
+                line = line.strip()
 
-            value = shlex.split(value)[0]
+                # skip empty lines
+                if line == "":
+                    continue
 
-            data[key] = base64.b64encode(value.encode()).decode()
+                # skip comments
+                if line.startswith("#"):
+                    continue
+
+                key, value = line.split('=', 1)
+                key = key.strip()
+
+                values = shlex.split(value)
+
+                # when the empty value provided, the 0 index is empty
+                value = values[0] if values else ""
+
+                data[key] = base64.b64encode(value.encode()).decode()
+    except FileNotFoundError:
+        print("[Error] Please provide a valid path to the .env file.")
+        sys.exit(1)
+    except Exception as e:
+        print(f"[Error] {e}")
+        sys.exit(1)
 
     secret = {
         'apiVersion': 'v1',
@@ -39,9 +59,9 @@ def seal_secret(input_path, controller_name='sealed-secrets', controller_namespa
     command = f"kubeseal --format=yaml --controller-name {controller_name} --controller-namespace {controller_namespace} < {input_path}"
 
     if print_none:
-        command += " > sealed-secret.yaml"
+        command += " > /tmp/sealed-secret.yaml"
     else:
-        command += " | tee sealed-secret.yaml"
+        command += " | tee /tmp/sealed-secret.yaml"
 
     subprocess.run(command, shell=True, check=True)
 
@@ -49,7 +69,7 @@ def seal_secret(input_path, controller_name='sealed-secrets', controller_namespa
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Convert .env to sealed secrets")
-    parser.add_argument('source', nargs='?', default='.env',
+    parser.add_argument('--source', default='.env',
                         help="Path to the .env file. Default is '.env' in the current directory.")
     parser.add_argument('--name', default='mysecret',
                         help="Name of the Secret. Default is 'mysecret'.")
@@ -64,11 +84,13 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    secret = env_to_secret(args.source, 'secret.yaml', args.name)
-    seal_secret('secret.yaml', args.controller_name,
+    secret = env_to_secret(args.source, '/tmp/secret.yaml', args.name)
+    seal_secret('/tmp/secret.yaml', args.controller_name,
                 args.controller_namespace, args.print_none)
 
-    if not args.output:
-        os.remove('secret.yaml')
-        if args.print_none or not args.output:
-            os.remove('sealed-secret.yaml')
+    if args.output:
+        os.system(f"cp /tmp/secret.yaml ./secret.yaml")
+        os.system(f"cp /tmp/sealed-secret.yaml ./sealed-secret.yaml")
+
+    os.remove('/tmp/secret.yaml')
+    os.remove('/tmp/sealed-secret.yaml')
