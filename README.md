@@ -27,15 +27,17 @@ pip install -r requirements.txt
 To convert a `.env` file to Sealed Secrets, run the script with the path to the `.env` file:
 
 ```bash
-python3 script.py [--source <.env file path>] [--name <Secret name>] [--controller-name <controller name>] [--controller-namespace <controller namespace>] [--print-none] [--output]
+python3 script.py [--source <.env file path>] [--name <Secret name>] [--namespace <Secret namespace>] [--controller-name <controller name>] [--controller-namespace <controller namespace>] [--scope <scope of sealed secret>] [--print-none] [--output]
 ```
 
 The script supports the following options:
 
 - `--source`: Path to the .env file. If not provided, it defaults to '.env' in the current directory.
 - `--name`: Name of the Secret. If not provided, it defaults to 'mysecret'.
+- `--namespace`: Namespace of the Secret. If not provided, it defaults to 'default'.
 - `--controller-name`: Controller name for Kubeseal. If not provided, it defaults to 'sealed-secrets'.
 - `--controller-namespace`: Controller namespace for Kubeseal. If not provided, it defaults to 'kube-system'.
+- `--scope`: Scope of the sealed secret. If not provided, it defaults to 'cluster-wide'.
 - `--print-none`: Do not print the sealed secret to stdout. If not set, the sealed secret is printed.
 - `--output`: Keep the generated secret.yaml and sealed-secret.yaml files. If not set, the files are removed after the secret is sealed.
 

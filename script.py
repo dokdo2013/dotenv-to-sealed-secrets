@@ -7,7 +7,7 @@ import sys
 import yaml
 
 
-def env_to_secret(env_path, output_path, name='mysecret'):
+def env_to_secret(env_path, output_path, name='mysecret', namespace='default'):
     data = {}
 
     try:
@@ -44,6 +44,7 @@ def env_to_secret(env_path, output_path, name='mysecret'):
         'kind': 'Secret',
         'metadata': {
             'name': name,
+            'namespace': namespace,
         },
         'type': 'Opaque',
         'data': data,
@@ -55,8 +56,8 @@ def env_to_secret(env_path, output_path, name='mysecret'):
     return secret
 
 
-def seal_secret(input_path, controller_name='sealed-secrets', controller_namespace='kube-system', print_none=False):
-    command = f"kubeseal --format=yaml --controller-name {controller_name} --controller-namespace {controller_namespace} < {input_path}"
+def seal_secret(input_path, controller_name='sealed-secrets', controller_namespace='kube-system', print_none=False, scope='cluster-wide'):
+    command = f"kubeseal --scope {scope} --format=yaml --controller-name {controller_name} --controller-namespace {controller_namespace} < {input_path}"
 
     if print_none:
         command += " > /tmp/sealed-secret.yaml"
@@ -73,10 +74,14 @@ if __name__ == "__main__":
                         help="Path to the .env file. Default is '.env' in the current directory.")
     parser.add_argument('--name', default='mysecret',
                         help="Name of the Secret. Default is 'mysecret'.")
+    parser.add_argument('--namespace', default='default',
+                        help="Namespace of the Secret. Default is 'default'.")
     parser.add_argument('--controller-name', default='sealed-secrets',
                         help="Controller name for Kubeseal. Default is 'sealed-secrets'.")
     parser.add_argument('--controller-namespace', default='kube-system',
                         help="Controller namespace for Kubeseal. Default is 'kube-system'.")
+    parser.add_argument('--scope', default='cluster-wide',
+                        help="Scope of the sealed secret. If not set, the scope is 'cluster-wide'.")
     parser.add_argument('--print-none', action='store_true',
                         help="Do not print the sealed secret to stdout. If not set, the sealed secret is printed.")
     parser.add_argument('--output', action='store_true',
@@ -84,9 +89,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    secret = env_to_secret(args.source, '/tmp/secret.yaml', args.name)
+    secret = env_to_secret(args.source, '/tmp/secret.yaml',
+                           args.name, args.namespace)
     seal_secret('/tmp/secret.yaml', args.controller_name,
-                args.controller_namespace, args.print_none)
+                args.controller_namespace, args.print_none, args.scope)
 
     if args.output:
         os.system(f"cp /tmp/secret.yaml ./secret.yaml")
